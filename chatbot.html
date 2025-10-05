@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SapioAI – Clarification Chat</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="chatbot.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div><strong>SapioAI</strong></div>
+    <nav>
+      <a href="how-it-works.html">How It Works</a>
+      <a href="generate-plan.html">Demo</a>
+      <a href="#">For Individuals</a>
+      <a href="#">For Employers</a>
+      <a href="about.html">About</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <section class="chat-hero">
+    <h1>Let’s Clarify a Few Things</h1>
+    <p>To build your CPD roadmap, I just need to clarify some of your answers. Ready?</p>
+  </section>
+
+  <section class="chat-container">
+    <div class="chat-box" id="chat-box">
+      <div class="chat-message bot">👋 Hi! Can you help me clarify a few things?</div>
+    </div>
+
+    <form id="chat-form">
+      <input type="text" id="user-input" placeholder="Type your message..." required />
+      <button type="submit">Send</button>
+    </form>
+  </section>
+
+  <footer>
+    © 2025 SapioAI. All rights reserved.
+  </footer>
+
+<script>
+  console.log(localStorage.getItem('clarifier_session'))
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('user-input');
+  const chatBox = document.getElementById('chat-box');
+
+  const sessionId = localStorage.getItem("clarifier_session");
+
+  function appendMessage(role, message) {
+    const div = document.createElement('div');
+    div.className = `chat-message ${role}`;
+    div.textContent = message;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+
+    appendMessage("user", message);
+    input.value = "";
+
+    try {
+      const res = await fetch("http://localhost:8000/clarify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: message
+        })
+      });
+
+      const data = await res.json();
+      console.log(data)
+      if (data.reply) appendMessage("bot", data.reply);
+
+      if (data.roadmap) {
+        appendMessage("bot", "🎯 Here's your final CPD roadmap:");
+        data.roadmap.forEach(step => appendMessage("bot", step));
+        console.log("✅ Final Profile:", data.final_profile);
+      }
+    } catch (err) {
+      appendMessage("bot", "❌ Error talking to the server.");
+      console.error(err);
+    }
+  });
+</script>
+
+</body>
+</html>

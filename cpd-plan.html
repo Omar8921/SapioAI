@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CPD Roadmap</title>
+  <link rel="stylesheet" href="cpd-plan.css">
+</head>
+<body>
+
+  <div class="timeline-container">
+    <div class="timeline-title">Your CPD Roadmap</div>
+    <div class="timeline" id="roadmap"></div>
+  </div>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      const roadmap = document.getElementById("roadmap");
+
+      try {
+        const res = await fetch("http://localhost:8002/planner");
+        if (!res.ok) throw new Error("Failed to fetch CPD plan");
+        const data = await res.json(); // Expected shape: { steps: StepItem[], skipped_steps: StepItem[] }
+
+        data.steps.forEach((step, index) => {
+          const outcomes = step.learning_outcomes
+            .map(o => `<li>${o}</li>`)
+            .join("");
+
+          const event = document.createElement("div");
+          event.classList.add("event");
+          event.setAttribute("onclick", "toggleEvent(this)");
+
+          event.innerHTML = `
+            <div class="circle">${index + 1}</div>
+            <div class="content">
+              <div class="year">Step ${index + 1}</div>
+              <div class="title">${step.step}</div>
+              <div class="short-desc">Estimated Time: ${step.estimated_time} hours</div>
+              <div class="full-desc"><strong>Learning Outcomes:</strong><ul>${outcomes}</ul></div>
+            </div>
+          `;
+
+          roadmap.appendChild(event);
+        });
+
+      } catch (err) {
+        console.error("Error loading CPD plan:", err);
+        roadmap.innerHTML = "<p>Failed to load roadmap. Please try again later.</p>";
+      }
+    });
+
+    function toggleEvent(el) {
+      el.classList.toggle("expanded");
+    }
+  </script>
+
+</body>
+</html>

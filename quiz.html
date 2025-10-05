@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Step Quiz – SapioAI</title>
+  <link rel="stylesheet" href="quiz.css" />
+  <style>
+    .question-block.correct input:checked + span {
+      color: green;
+      font-weight: bold;
+    }
+    .question-block.wrong input:checked + span {
+      color: red;
+      font-weight: bold;
+    }
+    .feedback {
+      margin-top: 5px;
+      font-style: italic;
+    }
+    #submit-btn, #back-btn {
+      padding: 12px 24px;
+      font-size: 16px;
+      margin: 20px 10px 0 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #submit-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #submit-btn:disabled {
+      background-color: gray;
+      cursor: default;
+    }
+    #back-btn {
+      background-color: #f2f2f2;
+      color: #333;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="quiz-container">
+    <h1 id="quiz-title">Generating Quiz...</h1>
+    <div id="quiz"></div>
+    <button id="submit-btn" style="display: none;">Submit</button>
+    <button id="back-btn">← Back to Roadmap</button>
+  </div>
+
+  <div id="style-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <p id="style-question">Did you like the learning style used in this step?</p>
+    <div class="modal-actions">
+      <button id="like-style">Yes, I liked it</button>
+      <button id="dislike-style">No, I didn’t</button>
+    </div>
+  </div>
+</div>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      const quizContainer = document.getElementById("quiz");
+      const title = document.getElementById("quiz-title");
+      const submitBtn = document.getElementById("submit-btn");
+      const quizData = JSON.parse(localStorage.getItem("sapio_quiz") || "{}");
+      const sessionId = localStorage.getItem("clarifier_session");
+      const stepIndex = parseInt(localStorage.getItem("sapio_step_index") || "0");
+
+      title.textContent = `Quiz: ${quizData.step}`;
+
+      try {
+        const res = await fetch("http://localhost:8000/generate-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(quizData)
+        });
+
+        const data = await res.json();
+
+        data.quiz.forEach((q, idx) => {
+          const div = document.createElement("div");
+          div.className = "question-block";
+          div.setAttribute("data-correct", q.choices[0]);
+
+          const options = q.choices
+            .map((c, i) => `
+              <label>
+                <input type="radio" name="q${idx}" value="${c}">
+                <span>${c}</span>
+              </label><br>
+            `)
+            .join("");
+
+          div.innerHTML = `<p><strong>Q${idx + 1}:</strong> ${q.question}</p>${options}<div class="feedback"></div>`;
+          quizContainer.appendChild(div);
+        });
+
+        submitBtn.style.display = "inline-block";
+      } catch (err) {
+        quizContainer.innerHTML = "<p>❌ Failed to load quiz. Please try again.</p>";
+        console.error(err);
+      }
+
+      submitBtn.addEventListener("click", async () => {
+        const blocks = document.querySelectorAll(".question-block");
+        let correctCount = 0;
+
+        blocks.forEach((block) => {
+          const correct = block.getAttribute("data-correct");
+          const selected = block.querySelector("input:checked")?.value;
+
+          if (!selected) {
+            block.querySelector(".feedback").textContent = "⚠️ No answer selected.";
+            block.className = "question-block";
+            return;
+          }
+
+          if (selected === correct) {
+            block.classList.add("correct");
+            block.querySelector(".feedback").textContent = "✅ Correct!";
+            correctCount++;
+          } else {
+            block.classList.add("wrong");
+            block.querySelector(".feedback").textContent = `❌ Wrong. Correct answer: ${correct}`;
+          }
+
+          block.querySelectorAll("input").forEach(input => input.disabled = true);
+        });
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitted";
+
+        const passRatio = correctCount / blocks.length;
+        if (passRatio >= 0.7) {
+          alert("✅ You passed!");
+
+          const actualWeeks = prompt("How many weeks did it take you?", "2");
+          const parsedWeeks = parseInt(actualWeeks);
+          if (isNaN(parsedWeeks)) {
+            alert("⚠️ Please enter a valid number.");
+            return;
+          }
+
+          console.log("Sending update-duration:", {
+            session_id: sessionId,
+            current_step_index: stepIndex,
+            actual_duration: parseInt(actualWeeks)
+          });
+
+          const response = await fetch("http://localhost:8000/update-duration", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                session_id: sessionId,
+                current_step_index: stepIndex,
+                actual_duration: parseInt(actualWeeks)
+                })
+              });
+
+          const result = await response.json();
+
+          console.log(result)
+              
+          if (result.updated_roadmap) {
+            localStorage.setItem("sapio_roadmap", JSON.stringify({
+              enriched_roadmap: result.updated_roadmap
+            }));
+          }
+
+          const updatedSteps = result.updated_roadmap;
+          updatedSteps[stepIndex].completed = true;
+
+          localStorage.setItem("sapio_roadmap", JSON.stringify({
+            enriched_roadmap: updatedSteps
+          }));
+
+          alert("✅ Your plan has been adapted.");
+
+          let completed = JSON.parse(localStorage.getItem("sapio_completed_steps") || "[]");
+          if (!completed.includes(stepIndex)) {
+            completed.push(stepIndex);
+            localStorage.setItem("sapio_completed_steps", JSON.stringify(completed));
+          }
+
+          const roadmapData = JSON.parse(localStorage.getItem("sapio_roadmap") || "{}");
+          const currentStep = roadmapData.enriched_roadmap?.[stepIndex];
+
+          let currentResources = "unknown";
+          if (currentStep?.resources) {
+            currentResources = currentStep.resources.map(r => r.type).join(", ");
+          } 
+
+// Show modal and handle response
+        document.getElementById("style-question").textContent =
+          `Did you like the learning style used in this step? (${currentResources})`;
+
+          const modal = document.getElementById("style-modal");
+          modal.style.display = "flex";
+
+          document.getElementById("like-style").onclick = async () => {
+            modal.style.display = "none";
+            await fetch("http://localhost:8000/update-style", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                session_id: sessionId,
+                current_step_index: stepIndex,
+                liked_style: true
+              })
+            });
+          };
+
+          document.getElementById("dislike-style").onclick = async () => {
+            modal.style.display = "none";
+            await fetch("http://localhost:8000/update-style", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                session_id: sessionId,
+                current_step_index: stepIndex,
+                liked_style: false
+              })
+            });
+          };
+
+        } else {
+          alert("❌ You didn’t pass. Review and try again.");
+        }
+      });
+
+      document.getElementById("back-btn").addEventListener("click", () => {
+        window.location.href = "cpd-plan.html";
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Generate CPD Plan – SapioAI</title>
+  <link rel="stylesheet" href="generate-plan.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    input, textarea {
+      width: 400px;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    .multi-input { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+    .add-btn, .remove-btn {
+      padding: 6px 10px;
+      cursor: pointer;
+      background: #5c4dff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    .remove-btn { background: #ff4d4d; }
+    .select-fixed { width: 420px; height: 45px; font-size: 16px; }
+    .error-message {
+      color: red;
+      font-size: 14px;
+      margin-top: -5px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>SapioAI</strong></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How It Works</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+
+  <section class="cpd-hero">
+    <h1>Generate Your Personalized CPD Plan</h1>
+    <p>Answer a few short questions to create your custom roadmap.</p>
+  </section>
+
+  <section class="form-section">
+    <form id="cpdForm">
+      <div class="step" data-step="1">
+        <div class="multi-input">
+          <label for="first-name">First Name:</label>
+          <input type="text" id="first-name" required />
+          <label for="last-name">Last Name:</label>
+          <input type="text" id="last-name" required />
+        </div>
+      </div>
+
+      <div class="step" data-step="2">
+        <label>Education:</label>
+        <div id="education-wrapper">
+          <div class="multi-input">
+            <input type="text" name="education" required />
+            <button type="button" class="remove-btn" onclick="removeField(this)">-</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addField('education-wrapper', 'education')">+</button>
+      </div>
+
+      <div class="step" data-step="3">
+        <label>Experience:</label>
+        <div id="experience-wrapper">
+          <div class="multi-input">
+            <textarea name="experience" required></textarea>
+            <button type="button" class="remove-btn" onclick="removeField(this)">-</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addField('experience-wrapper', 'experience', true)">+</button>
+      </div>
+
+      <div class="step" data-step="4">
+        <label>Career Goals:</label>
+        <div id="goals-wrapper">
+          <div class="multi-input">
+            <textarea name="goals" required></textarea>
+            <button type="button" class="remove-btn" onclick="removeField(this)">-</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addField('goals-wrapper', 'goals', true)">+</button>
+      </div>
+
+      <div class="step" data-step="5">
+        <label>GitHub URL (optional):</label>
+        <input type="url" id="github" />
+      </div>
+
+      <div class="step" data-step="6">
+        <label>LinkedIn URL (optional):</label>
+        <input type="url" id="linkedin" />
+      </div>
+
+      <div class="step" data-step="7">
+        <label>Financial Capability:</label>
+        <select id="financial" class="select-fixed" required>
+          <option value="">Select...</option>
+          <option value="Low">Low</option>
+          <option value="Moderate">Moderate</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+
+      <div class="step" data-step="8">
+        <label>Weekly Commitment (hours):</label>
+        <input type="number" id="commitment" required />
+      </div>
+
+      <div class="step" data-step="9">
+        <label>Preferred Learning Style:</label>
+        <div id="learning-style-wrapper">
+          <div class="multi-input">
+            <input type="text" name="learning-style" required />
+            <button type="button" class="remove-btn" onclick="removeField(this)">-</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addField('learning-style-wrapper', 'learning-style')">+</button>
+      </div>
+
+      <div id="errorBox" class="error-message"></div>
+
+      <div class="form-navigation">
+        <button type="button" id="prevBtn">Back</button>
+        <button type="button" id="nextBtn">Next</button>
+        <button type="submit" id="submitBtn" style="display:none;">Submit</button>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    © 2025 SapioAI. All rights reserved.
+  </footer>
+
+<script>
+  const steps = document.querySelectorAll(".step");
+  let currentStep = 0;
+  const errorBox = document.getElementById("errorBox");
+
+  function showStep(index) {
+    steps.forEach((step, i) => {
+      step.style.display = i === index ? "block" : "none";
+    });
+    document.getElementById("prevBtn").style.display = index > 0 ? "inline" : "none";
+    document.getElementById("nextBtn").style.display = index < steps.length - 1 ? "inline" : "none";
+    document.getElementById("submitBtn").style.display = index === steps.length - 1 ? "inline" : "none";
+    errorBox.textContent = "";
+  }
+
+  function addField(wrapperId, name, isTextarea = false) {
+    const wrapper = document.getElementById(wrapperId);
+    const div = document.createElement("div");
+    div.className = "multi-input";
+    div.innerHTML = isTextarea 
+      ? `<textarea name="${name}" required></textarea><button type="button" class="remove-btn" onclick="removeField(this)">-</button>`
+      : `<input type="text" name="${name}" required /><button type="button" class="remove-btn" onclick="removeField(this)">-</button>`;
+    wrapper.appendChild(div);
+  }
+
+  function removeField(button) {
+    const container = button.parentElement;
+    container.parentElement.removeChild(container);
+  }
+
+  function validateStep(index) {
+    const step = steps[index];
+    const inputs = step.querySelectorAll("input, textarea, select");
+    for (let input of inputs) {
+      if (input.hasAttribute("required") && !input.value.trim()) {
+        errorBox.textContent = "Please fill all required fields.";
+        return false;
+      }
+    }
+    const wrappers = ["education-wrapper", "experience-wrapper", "goals-wrapper", "learning-style-wrapper"];
+    for (let id of wrappers) {
+      if (step.contains(document.getElementById(id))) {
+        const validInputs = [...document.getElementById(id).querySelectorAll("input, textarea")].filter(x => x.value.trim() !== "");
+        if (validInputs.length === 0) {
+          errorBox.textContent = `Please enter at least one value for ${id.replace('-wrapper', '')}.`;
+          return false;
+        }
+      }
+    }
+    errorBox.textContent = "";
+    return true;
+  }
+
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    if (validateStep(currentStep) && currentStep < steps.length - 1) {
+      currentStep++;
+      showStep(currentStep);
+    }
+  });
+
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep--;
+      showStep(currentStep);
+    }
+  });
+
+  document.getElementById("cpdForm").addEventListener("submit", function (e) {
+    if (!validateStep(currentStep)) {
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener("load", () => showStep(currentStep));
+
+  function collectFormData() {
+    const formData = {
+      firstName: document.getElementById("first-name").value.trim(),
+      lastName: document.getElementById("last-name").value.trim(),
+      education: Array.from(document.querySelectorAll("input[name='education']")).map(i => i.value.trim()),
+      experience: Array.from(document.querySelectorAll("textarea[name='experience']")).map(i => i.value.trim()),
+      careerGoals: Array.from(document.querySelectorAll("textarea[name='goals']")).map(i => i.value.trim()),
+      github: document.getElementById("github").value.trim() || null,
+      linkedin: document.getElementById("linkedin").value.trim() || null,
+      financialCapability: document.getElementById("financial").value,
+      weeklyCommitment: parseInt(document.getElementById("commitment").value),
+      learningStyle: Array.from(document.querySelectorAll("input[name='learning-style']")).map(i => i.value.trim())
+    };
+
+    return formData;
+  }
+
+  document.getElementById("cpdForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!validateStep(currentStep)) {
+      e.preventDefault();
+      return;
+    }
+
+    const rawProfile = {
+  name: `${document.getElementById("first-name").value.trim()} ${document.getElementById("last-name").value.trim()}`,
+  user_id: crypto.randomUUID(),
+  education: Array.from(document.querySelectorAll("input[name='education']")).map(i => i.value.trim()),
+  experience: Array.from(document.querySelectorAll("textarea[name='experience']")).map(i => i.value.trim()),
+  goals: Array.from(document.querySelectorAll("textarea[name='goals']")).map(i => i.value.trim()),
+  github_url: document.getElementById("github").value.trim() || null,
+  linkedin_url: document.getElementById("linkedin").value.trim() || null,
+  financial_capability: document.getElementById("financial").value,
+  weekly_commitment: parseInt(document.getElementById("commitment").value),
+  learning_preferences: Array.from(document.querySelectorAll("input[name='learning-style']")).map(i => i.value.trim())
+};
+    const sessionId = crypto.randomUUID();
+    
+    // Send profile to backend to start the clarification session
+    await fetch("http://localhost:8000/clarify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: "",
+        profile: rawProfile
+      })
+    });
+    
+    localStorage.setItem("clarifier_session", sessionId);
+    window.location.href = "chatbot.html";
+  });
+
+
+</script>
+</body>
+</html>
